@@ -6,7 +6,7 @@ public class Room {
     private final int y;
     private final int width;
     private final int height;
-    int id;
+    private int id;
 
     public Room(int x, int y, int width, int height, int id) {
         this(x, y, width, height);
@@ -20,11 +20,17 @@ public class Room {
         this.height = height;
     }
 
+
+
+    public boolean intersect(Room other, int gap) {
+        return this.x - gap < other.x + other.width
+                && this.x + this.width > other.x - gap
+                && this.y - gap < other.y + other.height
+                && this.y + this.height > other.y - gap;
+    }
+
     public boolean intersect(Room other) {
-        return this.x < other.x + other.width
-                && this.x + this.width > other.x
-                && this.y < other.y + other.height
-                && this.y + this.height > other.y;
+        return intersect(other, 2);
     }
 
     public int l1DistanceTo(Room other) {
@@ -74,4 +80,6 @@ public class Room {
     public void setId(int id) {
         this.id = id;
     }
+
+
 }

@@ -4,6 +4,7 @@ import java.util.Random;
 
 public class WorldGenerator {
     Random random;
+    Graph layout;
 
     public WorldGenerator(long seed) {
         random = new Random(seed);
@@ -24,6 +25,18 @@ public class WorldGenerator {
     }
 
     // TODO: Randomly place rooms on the map
-    public
+    public void initializeRooms() {}
+
+    // TODO: calculate the pairwise shortest hallway between each rooms and add it into graph
+    public void initializeHallway() {}
+
+    // TODO: Find the minimum spaning tree
+    public Graph mst() {
+        return new Graph();
+    }
+
+    // TODO: connect Rooms with hallways
+    public void connectRooms() {}
+
 
 }

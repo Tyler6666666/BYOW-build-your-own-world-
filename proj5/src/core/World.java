@@ -50,7 +50,7 @@ public class World {
         rooms = new ArrayList<>();
         hallways = new ArrayList<>();
         initializeEmptyWorld();
-        generateRooms(0.1,2);
+        generateRooms(0.10,2);
         generateHallways();
         connectRooms();
         generateWalls();

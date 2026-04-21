@@ -9,14 +9,17 @@ import java.util.Random;
 public class WorldTest {
 
     public static void main(String[] args) {
-        System.out.println(System.getProperty("user.dir"));
-        long[] seeds =  {
-                5002428080056670153L,
-                5711147583345673365L,
-                5986993146115965266L,
-                5998105318979352956L,
-                8902403101044752104L,
-        };
+//        boostrap();
+        save5BDeliverables();
+    }
+
+    public static void save5BDeliverables() {
+        long[] seeds = new long[5];
+
+        Random r = new Random(56);
+        for (int i = 0; i < 5; i += 1) {
+            seeds[i] = (Math.abs(r.nextLong()));
+        }
 
         int WORLD_WIDTH = 50;
         int WORLD_HEIGHT = 50;
@@ -31,7 +34,6 @@ public class WorldTest {
             StdDraw.show();
             StdDraw.save(String.format("proj5/5B-deliverables/world%d.png", i+1));
         }
-//        boostrap();
     }
 
     public static void boostrap() {

@@ -61,6 +61,11 @@ public class Room {
         return xGap + yGap;
     }
 
+    public boolean contains(int tileX, int tileY) {
+        return tileX >= x && tileX < x + width
+                && tileY >= y && tileY < y + height;
+    }
+
     public int getX() {return x;}
 
     public int getY() {

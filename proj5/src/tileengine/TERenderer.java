@@ -4,6 +4,7 @@ import edu.princeton.cs.algs4.StdDraw;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.Toolkit;
 
 /**
  * Utility class for rendering tiles. You do not need to modify this file. You're welcome
@@ -12,11 +13,15 @@ import java.awt.Font;
  * allowing scrolling of the screen or tracking the avatar or something similar.
  */
 public class TERenderer {
-    private static final int TILE_SIZE = 16;
+    private static final int DEFAULT_TILE_SIZE = 16;
+    private static final int MIN_TILE_SIZE = 14;
     private int width;
     private int height;
     private int xOffset;
     private int yOffset;
+    private int tileSize;
+    private int canvasWidth;
+    private int canvasHeight;
 
     /**
      * Same functionality as the other initialization method. The only difference is that the xOff
@@ -32,7 +37,11 @@ public class TERenderer {
         this.height = h;
         this.xOffset = xOff;
         this.yOffset = yOff;
-        StdDraw.setCanvasSize(width * TILE_SIZE, height * TILE_SIZE);
+        int[] canvasDimensions = computeCanvasDimensions(w, h);
+        canvasWidth = canvasDimensions[0];
+        canvasHeight = canvasDimensions[1];
+        tileSize = Math.max(MIN_TILE_SIZE, Math.min(canvasWidth / width, canvasHeight / height));
+        StdDraw.setCanvasSize(canvasWidth, canvasHeight);
         resetFont();
         StdDraw.setXscale(0, width);
         StdDraw.setYscale(0, height);
@@ -83,7 +92,18 @@ public class TERenderer {
      * if you changed the pen settings.
      */
     public void resetFont() {
-        Font font = new Font("Monaco", Font.BOLD, TILE_SIZE - 2);
+        Font font = new Font("Monaco", Font.BOLD, Math.max(12, tileSize - 2));
         StdDraw.setFont(font);
+    }
+
+    private int[] computeCanvasDimensions(int worldWidth, int worldHeight) {
+        try {
+            var screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+            int fittedTileSize = Math.max(MIN_TILE_SIZE,
+                    Math.min(screenSize.width / worldWidth, screenSize.height / worldHeight));
+            return new int[]{worldWidth * fittedTileSize, worldHeight * fittedTileSize};
+        } catch (RuntimeException ignored) {
+            return new int[]{worldWidth * DEFAULT_TILE_SIZE, worldHeight * DEFAULT_TILE_SIZE};
+        }
     }
 }

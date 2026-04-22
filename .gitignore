@@ -59,6 +59,11 @@ proj4*/data/
 proj4*/*.zip
 proj4*/*.txt
 
+# Local BYOW save data
+proj5-saves/
+proj5/proj5-saves/
+proj5/proj5-last-seed.txt
+
 # Library
 *.jar
 

@@ -20,7 +20,8 @@ public class Game {
     private static final int WORLD_HEIGHT = 50;
     private static final int HUD_ROWS = 5;
     private static final String PROJECT_SAVE_DIR = "src/core";
-    private static final String REPO_SAVE_DIR = "proj5/src/core";
+    private static final String SOURCE_ROOT_SAVE_DIR = "core";
+    private static final String LEGACY_LOCAL_SAVE_DIR = "proj5/src/core";
     private static final int MAX_VISIBLE_SAVES = 8;
     private static final int BASE_COIN_SCORE = 10;
     private static final long COIN_DECAY_INTERVAL_MILLIS = 30_000L;
@@ -880,17 +881,19 @@ public class Game {
     }
 
     private File resolveSaveDirectory() {
-        File projectSaveDir = new File(PROJECT_SAVE_DIR);
-        if (projectSaveDir.exists() && projectSaveDir.isDirectory()) {
-            return projectSaveDir;
+        File[] candidates = {
+                new File(PROJECT_SAVE_DIR),
+                new File(SOURCE_ROOT_SAVE_DIR),
+                new File(LEGACY_LOCAL_SAVE_DIR)
+        };
+
+        for (File candidate : candidates) {
+            if (candidate.exists() && candidate.isDirectory()) {
+                return candidate;
+            }
         }
 
-        File repoSaveDir = new File(REPO_SAVE_DIR);
-        if (repoSaveDir.exists() && repoSaveDir.isDirectory()) {
-            return repoSaveDir;
-        }
-
-        return repoSaveDir;
+        return new File(PROJECT_SAVE_DIR);
     }
 
     private void deleteSave(SaveEntry save) {

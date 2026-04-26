@@ -4,9 +4,13 @@ import edu.princeton.cs.algs4.StdDraw;
 import tileengine.TERenderer;
 
 import java.awt.*;
+import java.io.File;
 import java.util.Random;
 
 public class WorldTest {
+    private static final String PROJECT_DELIVERABLE_DIR = "5B-deliverables";
+    private static final String SOURCE_DELIVERABLE_DIR = "../5B-deliverables";
+    private static final String LEGACY_LOCAL_DELIVERABLE_DIR = "proj5/5B-deliverables";
 
     public static void main(String[] args) {
 //        boostrap();
@@ -32,8 +36,29 @@ public class WorldTest {
             StdDraw.clear(new Color(0, 0, 0));
             ter.drawTiles(world.getTiles());
             StdDraw.show();
-            StdDraw.save(String.format("proj5/5B-deliverables/world%d.png", i+1));
+            StdDraw.save(new File(resolveDeliverablesDirectory(),
+                    String.format("world%d.png", i + 1)).getPath());
         }
+    }
+
+    private static File resolveDeliverablesDirectory() {
+        File[] candidates = {
+                new File(PROJECT_DELIVERABLE_DIR),
+                new File(SOURCE_DELIVERABLE_DIR),
+                new File(LEGACY_LOCAL_DELIVERABLE_DIR)
+        };
+
+        for (File candidate : candidates) {
+            if (candidate.exists() && candidate.isDirectory()) {
+                return candidate;
+            }
+        }
+
+        File deliverablesDir = new File(PROJECT_DELIVERABLE_DIR);
+        if (!deliverablesDir.exists()) {
+            deliverablesDir.mkdirs();
+        }
+        return deliverablesDir;
     }
 
     public static void boostrap() {

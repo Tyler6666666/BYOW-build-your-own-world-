@@ -3,6 +3,7 @@ package tileengine;
 import edu.princeton.cs.algs4.StdDraw;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Toolkit;
 
@@ -98,7 +99,7 @@ public class TERenderer {
 
     private int[] computeCanvasDimensions(int worldWidth, int worldHeight) {
         try {
-            var screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
             int fittedTileSize = Math.max(MIN_TILE_SIZE,
                     Math.min(screenSize.width / worldWidth, screenSize.height / worldHeight));
             return new int[]{worldWidth * fittedTileSize, worldHeight * fittedTileSize};

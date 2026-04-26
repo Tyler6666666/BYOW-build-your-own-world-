@@ -40,11 +40,14 @@ public class RandomWorldDemo {
         // The following call to nextInt() uses a bound of 3 (this is not a seed!) so
         // the result is bounded between 0, inclusive, and 3, exclusive. (0, 1, or 2)
         int tileNum = RANDOM.nextInt(3);
-        return switch (tileNum) {
-            case 0 -> Tileset.WALL;
-            case 1 -> Tileset.FLOWER;
-            default -> Tileset.NOTHING;
-        };
+        switch (tileNum) {
+            case 0:
+                return Tileset.WALL;
+            case 1:
+                return Tileset.FLOWER;
+            default:
+                return Tileset.NOTHING;
+        }
     }
 
     public static void main(String[] args) {

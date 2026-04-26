@@ -243,6 +243,10 @@ public class TETile {
         if (o == this) {
             return true;
         }
-        return (o instanceof TETile otherTile && otherTile.id == this.id);
+        if (!(o instanceof TETile)) {
+            return false;
+        }
+        TETile otherTile = (TETile) o;
+        return otherTile.id == this.id;
     }
 }

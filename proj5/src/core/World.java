@@ -95,7 +95,7 @@ public class World {
         moveCount = 0;
         gameWon = false;
         gameOver = false;
-        lineOfSightEnabled = true;
+        lineOfSightEnabled = false;
         visibleMask = new boolean[WIDTH][HEIGHT];
         initializeEmptyWorld();
         generateRooms(0.10,2);

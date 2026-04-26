@@ -6,6 +6,7 @@ import utils.FileUtils;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.GraphicsEnvironment;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -40,6 +41,9 @@ public class Game {
     }
 
     public void run() {
+        if (GraphicsEnvironment.isHeadless()) {
+            return;
+        }
         setup();
 
         while (true) {

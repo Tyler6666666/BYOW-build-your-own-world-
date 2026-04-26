@@ -249,4 +249,9 @@ public class TETile {
         TETile otherTile = (TETile) o;
         return otherTile.id == this.id;
     }
+
+    @Override
+    public int hashCode() {
+        return id;
+    }
 }

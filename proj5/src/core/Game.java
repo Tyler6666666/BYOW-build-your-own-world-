@@ -289,6 +289,7 @@ public class Game {
     private void render(World world, int mouseX, int mouseY, long elapsedMillis,
                         List<World.Position> selectedPath, World.Position selectedTarget) {
         StdDraw.clear(new Color(8, 11, 18));
+        renderer.resetFont();
         renderer.drawTiles(world.getVisibleTiles());
         drawPathOverlay(selectedPath, selectedTarget);
         drawHud(world, mouseX, mouseY, elapsedMillis);

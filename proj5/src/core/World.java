@@ -28,14 +28,16 @@ public class World {
     private static final int MIN_MONSTER_SPAWN_DISTANCE = 6;
     private static final int HALLWAY_ENTRANCE_BUFFER = 2;
     private static final int MONSTER_FREEZE_MOVES_AFTER_HIT = 2;
+    private static final double MIN_VISIBLE_BRIGHTNESS = 0.28;
+    private static final double VISIBLE_FADE_PADDING = 1.5;
     private static final int[][] ECHO_DIRECTIONS = new int[][]{
             {0, 1}, {1, 1}, {1, 0}, {1, -1},
             {0, -1}, {-1, -1}, {-1, 0}, {-1, 1}
     };
 
     private final long seed;
-    private final Difficulty difficulty;
-    private final Random rand;
+    private Difficulty difficulty;
+    private final SaveableRandom rand;
     private final int WIDTH;
     private final int HEIGHT;
 
@@ -53,6 +55,7 @@ public class World {
     private int moveCount;
     private boolean gameWon;
     private boolean gameOver;
+    private boolean lineOfSightEnabled;
     private boolean[][] visibleMask;
 
     // Construct the world. (1) no seed (2) with a seed (3) seed + width + height
@@ -75,7 +78,7 @@ public class World {
     public World(long seed, int WIDTH, int HEIGHT, Difficulty difficulty) {
         this.seed = seed;
         this.difficulty = difficulty;
-        rand = new Random(this.seed);
+        rand = new SaveableRandom(this.seed);
         this.WIDTH = WIDTH;
         this.HEIGHT = HEIGHT;
         tiles = new TETile[WIDTH][HEIGHT];
@@ -92,6 +95,7 @@ public class World {
         moveCount = 0;
         gameWon = false;
         gameOver = false;
+        lineOfSightEnabled = true;
         visibleMask = new boolean[WIDTH][HEIGHT];
         initializeEmptyWorld();
         generateRooms(0.10,2);
@@ -400,12 +404,13 @@ public class World {
                     .thenComparingInt(p -> p.x));
 
             int maxForRoom = Math.min(
-                    difficulty.getMaxMonstersPerRoom() + roomAreaBonus(roomTiles.size()),
+                    difficulty.getMaxMonstersPerRoom(),
                     Math.max(1, roomTiles.size() / 5)
             );
+            maxForRoom = Math.min(maxForRoom, Math.max(1, roomTiles.size() / 2));
             maxForRoom = Math.min(maxForRoom, roomTiles.size());
             int minForRoom = Math.min(
-                    difficulty.getMinMonstersPerRoom() + Math.max(0, roomAreaBonus(roomTiles.size()) - 1),
+                    difficulty.getMinMonstersPerRoom(),
                     maxForRoom
             );
             if (maxForRoom <= 0) {
@@ -442,16 +447,6 @@ public class World {
         if (monsters.isEmpty()) {
             throw new IllegalStateException("World generation produced no valid floor tile for monster spawn.");
         }
-    }
-
-    private int roomAreaBonus(int roomTileCount) {
-        if (roomTileCount >= 48) {
-            return 2;
-        }
-        if (roomTileCount >= 24) {
-            return 1;
-        }
-        return 0;
     }
 
     private List<Position> getRoomFloorPositions(Room room) {
@@ -846,7 +841,7 @@ public class World {
     private void freezeVisibleMonsters() {
         int frozenUntil = moveCount + MONSTER_FREEZE_MOVES_AFTER_HIT;
         for (MonsterState monster : monsters) {
-            if (monster.active && isTileVisible(monster.x, monster.y)) {
+            if (monster.active && isWithinLineOfSight(monster.x, monster.y)) {
                 monster.frozenUntilMoveCount = Math.max(monster.frozenUntilMoveCount, frozenUntil);
             }
         }
@@ -881,10 +876,11 @@ public class World {
                 return;
             }
 
-            revealEchoArea(x, y);
             if (tiles[x][y].equals(Tileset.WALL)) {
+                visibleMask[x][y] = true;
                 return;
             }
+            revealEchoArea(x, y);
         }
     }
 
@@ -904,20 +900,42 @@ public class World {
         }
     }
 
-    public boolean isTileVisible(int x, int y) {
+    private boolean isWithinLineOfSight(int x, int y) {
         return inBounds(x, y) && visibleMask[x][y];
     }
 
+    public boolean isTileVisible(int x, int y) {
+        return inBounds(x, y) && (!lineOfSightEnabled || visibleMask[x][y]);
+    }
+
     public TETile[][] getVisibleTiles() {
+        if (!lineOfSightEnabled) {
+            return TETile.copyOf(tiles);
+        }
+
         TETile[][] maskedTiles = TETile.copyOf(tiles);
         for (int x = 0; x < WIDTH; x += 1) {
             for (int y = 0; y < HEIGHT; y += 1) {
                 if (!visibleMask[x][y]) {
                     maskedTiles[x][y] = Tileset.NOTHING;
+                } else if (visibleMask[x][y]) {
+                    maskedTiles[x][y] = applyVisibilityFade(maskedTiles[x][y], x, y);
                 }
             }
         }
         return maskedTiles;
+    }
+
+    private TETile applyVisibilityFade(TETile tile, int x, int y) {
+        if (tile.equals(Tileset.AVATAR) || tile.equals(Tileset.NOTHING)) {
+            return tile;
+        }
+
+        double distance = Math.hypot(x - avatarX, y - avatarY);
+        double maxDistance = difficulty.getEchoRange() + VISIBLE_FADE_PADDING;
+        double normalizedDistance = Math.min(1.0, distance / maxDistance);
+        double brightness = 1.0 - normalizedDistance * (1.0 - MIN_VISIBLE_BRIGHTNESS);
+        return TETile.withBrightness(tile, brightness);
     }
 
     private Position chooseMonsterStep(MonsterState monster) {
@@ -1360,6 +1378,35 @@ public class World {
         return difficulty;
     }
 
+    public void setDifficulty(Difficulty difficulty) {
+        if (difficulty == null) {
+            return;
+        }
+        this.difficulty = difficulty;
+        refreshVisibility();
+    }
+
+    public boolean isLineOfSightEnabled() {
+        return lineOfSightEnabled;
+    }
+
+    public void setLineOfSightEnabled(boolean lineOfSightEnabled) {
+        this.lineOfSightEnabled = lineOfSightEnabled;
+        refreshVisibility();
+    }
+
+    public void toggleLineOfSight() {
+        setLineOfSightEnabled(!lineOfSightEnabled);
+    }
+
+    public long getRandomState() {
+        return rand.getState();
+    }
+
+    public void setRandomState(long randomState) {
+        rand.setState(randomState);
+    }
+
     public Position getExitPosition() {
         return exitPosition;
     }
@@ -1520,6 +1567,66 @@ public class World {
             this.position = position;
             this.cost = cost;
             this.priority = priority;
+        }
+    }
+
+    /**
+     * Mirrors java.util.Random's 48-bit LCG so the world RNG can be saved and restored exactly.
+     */
+    private static class SaveableRandom {
+        private static final long MULTIPLIER = 0x5DEECE66DL;
+        private static final long ADDEND = 0xBL;
+        private static final long MASK = (1L << 48) - 1;
+
+        private long state;
+
+        SaveableRandom(long seed) {
+            setSeed(seed);
+        }
+
+        long getState() {
+            return state;
+        }
+
+        void setState(long state) {
+            this.state = state & MASK;
+        }
+
+        private void setSeed(long seed) {
+            state = (seed ^ MULTIPLIER) & MASK;
+        }
+
+        private int nextBits(int bits) {
+            state = (state * MULTIPLIER + ADDEND) & MASK;
+            return (int) (state >>> (48 - bits));
+        }
+
+        int nextInt(int bound) {
+            if (bound <= 0) {
+                throw new IllegalArgumentException("bound must be positive");
+            }
+
+            if ((bound & -bound) == bound) {
+                return (int) ((bound * (long) nextBits(31)) >> 31);
+            }
+
+            int bits;
+            int value;
+            do {
+                bits = nextBits(31);
+                value = bits % bound;
+            } while (bits - value + (bound - 1) < 0);
+            return value;
+        }
+
+        boolean nextBoolean() {
+            return nextBits(1) != 0;
+        }
+
+        double nextDouble() {
+            long high = (long) nextBits(26) << 27;
+            long low = nextBits(27);
+            return (high + low) / (double) (1L << 53);
         }
     }
 

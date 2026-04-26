@@ -82,6 +82,29 @@ public class TETile {
         this(c, t.textColor, t.backgroundColor, t.description, t.filepath, t.id);
     }
 
+    /**
+     * Creates a copy of TETile t with both colors scaled by the provided brightness factor.
+     * A factor of 1.0 keeps the original colors, while smaller values dim the tile.
+     * @param t tile to copy
+     * @param brightness brightness scale in [0, 1]
+     * @return dimmed tile copy
+     */
+    public static TETile withBrightness(TETile t, double brightness) {
+        double clampedBrightness = Math.max(0.0, Math.min(1.0, brightness));
+        Color scaledTextColor = scaleColor(t.textColor, clampedBrightness);
+        Color scaledBackgroundColor = scaleColor(t.backgroundColor, clampedBrightness);
+        return new TETile(t.character, scaledTextColor, scaledBackgroundColor,
+                t.description, t.filepath, t.id);
+    }
+
+    private static Color scaleColor(Color color, double brightness) {
+        return new Color(
+                (int) Math.round(color.getRed() * brightness),
+                (int) Math.round(color.getGreen() * brightness),
+                (int) Math.round(color.getBlue() * brightness)
+        );
+    }
+
 
     /**
      * Draws the tile to the screen at location x, y. If a valid filepath is provided,

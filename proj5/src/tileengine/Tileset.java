@@ -11,9 +11,11 @@ import java.awt.Color;
  */
 public class Tileset {
     public static final TETile AVATAR = new TETile('@', Color.white, Color.black, "you", 0);
-    public static final TETile WALL = new TETile('#', new Color(216, 128, 128), Color.darkGray,
+    public static final TETile WALL = new TETile('#', new Color(196, 204, 214),
+            new Color(42, 52, 66),
             "wall", 1);
-    public static final TETile FLOOR = new TETile('.', new Color(128, 192, 128), Color.black,
+    public static final TETile FLOOR = new TETile(',', new Color(142, 184, 165),
+            new Color(18, 26, 30),
             "floor", 2);
     public static final TETile NOTHING = new TETile(' ', Color.black, Color.black, "nothing", 3);
     public static final TETile GRASS = new TETile('"', Color.green, Color.black, "grass", 4);

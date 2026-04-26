@@ -23,7 +23,9 @@ public class Game {
     private static final int MAX_VISIBLE_SAVES = 8;
     private static final int BASE_COIN_SCORE = 10;
     private static final long COIN_DECAY_INTERVAL_MILLIS = 30_000L;
+    private static final long MILLIS_PER_MOVE = 1_000L;
     private static final int MONSTER_SCORE_PENALTY = 3;
+    private static final int PATH_ANIMATION_DELAY_MILLIS = 90;
     private static final SimpleDateFormat SAVE_TIME_FORMAT =
             new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -54,22 +56,13 @@ public class Game {
             case 'n':
                 Long seed = promptForSeed();
                 if (seed != null) {
-                    Difficulty chosenDifficulty = showDifficultyMenu(
-                            selectedDifficulty,
-                            "Choose Difficulty",
-                            "Select how smart the bogeyman should feel in this run.",
-                            "Press E to start or B to cancel."
-                    );
-                    if (chosenDifficulty != null) {
-                        selectedDifficulty = chosenDifficulty;
-                        World world = new World(seed, WORLD_WIDTH, WORLD_HEIGHT, selectedDifficulty);
-                        saveWorld(world, 0L);
-                        showWorld(world, 0L);
-                    }
+                    World world = new World(seed, WORLD_WIDTH, WORLD_HEIGHT, selectedDifficulty);
+                    saveWorld(world);
+                    showWorld(world);
                 }
                 break;
             case 'l':
-                showLoadMenu();
+                loadMostRecentSave();
                 break;
             case 'q':
                 System.exit(0);
@@ -118,7 +111,7 @@ public class Game {
                 } else if (key == 'e' || key == '\n' || key == '\r') {
                     SaveData data = readSaveData(saves.get(selected));
                     selectedDifficulty = data.difficulty;
-                    showWorld(buildWorldFromSave(data), data.elapsedMillis);
+                    showWorld(buildWorldFromSave(data));
                     return;
                 } else if (key == 'b') {
                     return;
@@ -131,22 +124,48 @@ public class Game {
         }
     }
 
-    private void showWorld(World world, long initialElapsedMillis) {
+    private void showWorld(World world) {
         int lastMouseX = mouseTileX();
         int lastMouseY = mouseTileY();
         boolean needsRedraw = true;
         boolean mouseWasPressed = false;
+        boolean pendingQuitPrefix = false;
         World.Position selectedTarget = null;
         List<World.Position> selectedPath = new ArrayList<>();
-        long sessionStartMillis = System.currentTimeMillis() - initialElapsedMillis;
         long lastDisplayedSecond = -1;
 
         while (true) {
-            long elapsedMillis = System.currentTimeMillis() - sessionStartMillis;
+            long elapsedMillis = elapsedMillisForMoveCount(world.getMoveCount());
             long elapsedSeconds = elapsedMillis / 1000;
             if (elapsedSeconds != lastDisplayedSecond) {
                 lastDisplayedSecond = elapsedSeconds;
                 needsRedraw = true;
+            }
+
+            if (world.isGameWon() || world.isGameOver()) {
+                EndScreenAction action = showEndingScreen(world, elapsedMillis);
+                if (action == EndScreenAction.NEW_GAME) {
+                    Long seed = promptForSeed();
+                    if (seed != null) {
+                        world = new World(seed, WORLD_WIDTH, WORLD_HEIGHT, selectedDifficulty);
+                        saveWorld(world);
+                        selectedTarget = null;
+                        selectedPath = new ArrayList<>();
+                        lastDisplayedSecond = -1;
+                        needsRedraw = true;
+                        mouseWasPressed = false;
+                        pendingQuitPrefix = false;
+                        lastMouseX = mouseTileX();
+                        lastMouseY = mouseTileY();
+                    } else {
+                        needsRedraw = true;
+                    }
+                    continue;
+                }
+                if (action == EndScreenAction.MAIN_MENU) {
+                    return;
+                }
+                System.exit(0);
             }
 
             if (needsRedraw) {
@@ -157,11 +176,23 @@ public class Game {
 
             while (StdDraw.hasNextKeyTyped()) {
                 char key = Character.toLowerCase(StdDraw.nextKeyTyped());
+                if (pendingQuitPrefix) {
+                    if (key == 'q') {
+                        saveWorld(world);
+                        System.exit(0);
+                    }
+                    pendingQuitPrefix = false;
+                }
+
+                if (key == ':') {
+                    pendingQuitPrefix = true;
+                    continue;
+                }
+
                 if (key == 'r') {
                     world = new World(world.getSeed(), WORLD_WIDTH, WORLD_HEIGHT, world.getDifficulty());
                     selectedTarget = null;
                     selectedPath = new ArrayList<>();
-                    sessionStartMillis = System.currentTimeMillis();
                     lastDisplayedSecond = -1;
                     needsRedraw = true;
                     lastMouseX = mouseTileX();
@@ -174,15 +205,35 @@ public class Game {
                         return;
                     }
                 }
-                if (key == 'q') {
-                    if (confirmSaveBeforeLeaving(world, elapsedMillis, "quit the game")) {
-                        System.exit(0);
+                if (key == 't') {
+                    Difficulty chosenDifficulty = showDifficultyMenu(
+                            world.getDifficulty(),
+                            "Choose Difficulty",
+                            "Update the current world's line of sight and monster behavior.",
+                            "Press E to apply or B to keep the current difficulty."
+                    );
+                    if (chosenDifficulty != null) {
+                        world.setDifficulty(chosenDifficulty);
+                        selectedDifficulty = chosenDifficulty;
+                        selectedTarget = null;
+                        selectedPath = new ArrayList<>();
+                        needsRedraw = true;
+                        lastMouseX = mouseTileX();
+                        lastMouseY = mouseTileY();
                     }
+                }
+                if (key == 'v') {
+                    world.toggleLineOfSight();
+                    selectedTarget = null;
+                    selectedPath = new ArrayList<>();
+                    needsRedraw = true;
+                    lastMouseX = mouseTileX();
+                    lastMouseY = mouseTileY();
                 }
 
                 int[] direction = directionForKey(key);
                 if (direction != null && !world.isGameOver() && !world.isGameWon()
-                        && performPlayerStep(world, direction[0], direction[1], sessionStartMillis)) {
+                        && performPlayerStep(world, direction[0], direction[1])) {
                     selectedTarget = null;
                     selectedPath = new ArrayList<>();
                     lastDisplayedSecond = -1;
@@ -206,7 +257,7 @@ public class Game {
                     World.Position clickedTarget = new World.Position(mouseX, mouseY);
                     if (selectedTarget != null && selectedTarget.equals(clickedTarget)
                             && !selectedPath.isEmpty()) {
-                        followSelectedPath(world, selectedPath, sessionStartMillis);
+                        followSelectedPath(world, selectedPath, lastMouseX, lastMouseY, selectedTarget);
                         selectedTarget = null;
                         selectedPath = new ArrayList<>();
                         lastDisplayedSecond = -1;
@@ -270,7 +321,9 @@ public class Game {
         StdDraw.setFont(new Font("Arial", Font.BOLD, 10));
         StdDraw.setPenColor(new Color(230, 236, 243));
         StdDraw.textLeft(1.0, topRow,
-                "Seed: " + world.getSeed() + "   Difficulty: " + world.getDifficulty().getDisplayName());
+                "Seed: " + world.getSeed()
+                        + "   Difficulty: " + world.getDifficulty().getDisplayName()
+                        + "   LOS: " + (world.isLineOfSightEnabled() ? "On" : "Off"));
         StdDraw.textRight(WORLD_WIDTH - 1.0, topRow, "Hover: " + hovered);
 
         StdDraw.setFont(new Font("Arial", Font.PLAIN, 10));
@@ -285,10 +338,10 @@ public class Game {
 
         StdDraw.setPenColor(new Color(241, 196, 15));
         StdDraw.textLeft(1.0, bottomRow,
-                "Coin: " + currentCoinValue(elapsedMillis) + "   " + objective);
+                "Coin: " + currentCoinValue(world.getMoveCount()) + "   " + objective);
         StdDraw.setPenColor(new Color(173, 186, 199));
         StdDraw.textRight(WORLD_WIDTH - 1.0, bottomRow,
-                "Move: WASD   Path: double click   Menu: M   Quit: Q   Restart: R");
+                "Move: WASD   Path: double click   Difficulty: T   LOS: V   Menu: M   Save+Quit: :Q   Restart: R");
     }
 
     private void drawPathOverlay(List<World.Position> selectedPath, World.Position selectedTarget) {
@@ -309,13 +362,85 @@ public class Game {
         }
     }
 
-    private boolean performPlayerStep(World world, int dx, int dy, long sessionStartMillis) {
+    private EndScreenAction showEndingScreen(World world, long elapsedMillis) {
+        boolean needsRedraw = true;
+
+        while (true) {
+            if (needsRedraw) {
+                drawEndingScreen(world, elapsedMillis);
+                needsRedraw = false;
+            }
+
+            if (StdDraw.hasNextKeyTyped()) {
+                char key = Character.toLowerCase(StdDraw.nextKeyTyped());
+                if (key == 'n') {
+                    return EndScreenAction.NEW_GAME;
+                }
+                if (key == 'm') {
+                    return EndScreenAction.MAIN_MENU;
+                }
+                if (key == 'q') {
+                    return EndScreenAction.QUIT;
+                }
+            }
+
+            StdDraw.pause(16);
+        }
+    }
+
+    private void drawEndingScreen(World world, long elapsedMillis) {
+        StdDraw.clear(new Color(8, 11, 18));
+        drawMenuBackdrop();
+
+        boolean won = world.isGameWon();
+        Color titleColor = won ? new Color(93, 214, 122) : new Color(231, 76, 60);
+        String title = won ? "Run Complete" : "Game Over";
+        String subtitle = won
+                ? "You reached the exit with every coin collected."
+                : "The bogeymen caught up to you this time.";
+
+        StdDraw.setPenColor(titleColor);
+        StdDraw.setFont(new Font("Georgia", Font.BOLD, 28));
+        StdDraw.text(WORLD_WIDTH / 2.0, WORLD_HEIGHT - 4.0, title);
+
+        StdDraw.setPenColor(new Color(226, 232, 240));
+        StdDraw.setFont(new Font("Arial", Font.PLAIN, 14));
+        StdDraw.text(WORLD_WIDTH / 2.0, WORLD_HEIGHT - 7.0, subtitle);
+
+        StdDraw.setPenColor(new Color(18, 30, 46));
+        StdDraw.filledRectangle(WORLD_WIDTH / 2.0, WORLD_HEIGHT / 2.0 + 1.0, 17.5, 9.8);
+
+        StdDraw.setPenColor(new Color(241, 196, 15));
+        StdDraw.setFont(new Font("Arial", Font.BOLD, 15));
+        StdDraw.text(WORLD_WIDTH / 2.0, WORLD_HEIGHT / 2.0 + 7.0, "Final Summary");
+
+        StdDraw.setPenColor(new Color(215, 224, 234));
+        StdDraw.setFont(new Font("Arial", Font.PLAIN, 14));
+        StdDraw.text(WORLD_WIDTH / 2.0, WORLD_HEIGHT / 2.0 + 3.8,
+                "Time: " + formatElapsedTime(elapsedMillis));
+        StdDraw.text(WORLD_WIDTH / 2.0, WORLD_HEIGHT / 2.0 + 1.4,
+                "Score: " + world.getScore());
+        StdDraw.text(WORLD_WIDTH / 2.0, WORLD_HEIGHT / 2.0 - 1.0,
+                "Difficulty: " + world.getDifficulty().getDisplayName());
+        StdDraw.text(WORLD_WIDTH / 2.0, WORLD_HEIGHT / 2.0 - 3.4,
+                "Moves: " + world.getMoveCount() + "   HP: " + world.getHp());
+
+        StdDraw.setPenColor(new Color(244, 246, 247));
+        StdDraw.setFont(new Font("Arial", Font.BOLD, 16));
+        StdDraw.text(WORLD_WIDTH / 2.0, 11.0, "[N] New Game");
+
+        StdDraw.setPenColor(new Color(173, 186, 199));
+        StdDraw.setFont(new Font("Arial", Font.PLAIN, 13));
+        StdDraw.text(WORLD_WIDTH / 2.0, 8.2, "[M] Main Menu    [Q] Quit");
+        StdDraw.show();
+    }
+
+    private boolean performPlayerStep(World world, int dx, int dy) {
         if (!world.canAvatarMove(dx, dy)) {
             return false;
         }
 
-        long elapsedMillis = System.currentTimeMillis() - sessionStartMillis;
-        boolean moved = world.moveAvatar(dx, dy, currentCoinValue(elapsedMillis));
+        boolean moved = world.moveAvatar(dx, dy, currentCoinValue(world.getMoveCount()));
         if (!moved) {
             return false;
         }
@@ -324,18 +449,29 @@ public class Game {
         return true;
     }
 
-    private void followSelectedPath(World world, List<World.Position> path, long sessionStartMillis) {
+    private void followSelectedPath(World world, List<World.Position> path,
+                                    int mouseX, int mouseY, World.Position selectedTarget) {
         if (path == null || path.isEmpty()) {
             return;
         }
 
+        List<World.Position> remainingPath = new ArrayList<>(path);
         for (World.Position step : path) {
             int dx = step.getX() - world.getAvatarX();
             int dy = step.getY() - world.getAvatarY();
-            if (!performPlayerStep(world, dx, dy, sessionStartMillis)
+            if (!performPlayerStep(world, dx, dy)
                     || world.isGameOver() || world.isGameWon()) {
+                long elapsedMillis = elapsedMillisForMoveCount(world.getMoveCount());
+                render(world, mouseX, mouseY, elapsedMillis, remainingPath, selectedTarget);
+                StdDraw.show();
                 return;
             }
+
+            remainingPath.remove(0);
+            long elapsedMillis = elapsedMillisForMoveCount(world.getMoveCount());
+            render(world, mouseX, mouseY, elapsedMillis, remainingPath, selectedTarget);
+            StdDraw.show();
+            StdDraw.pause(PATH_ANIMATION_DELAY_MILLIS);
         }
     }
 
@@ -378,7 +514,7 @@ public class Game {
         StdDraw.setPenColor(new Color(130, 146, 166));
         StdDraw.setFont(new Font("Arial", Font.PLAIN, 13));
         StdDraw.text(WORLD_WIDTH / 2.0, 5.0,
-                "New Game will ask for a seed first, then let you choose the difficulty.");
+                "New Game starts right after seed entry. Press T in-world to change difficulty.");
         StdDraw.show();
     }
 
@@ -511,7 +647,7 @@ public class Game {
 
     private Long promptForSeed() {
         StringBuilder seedBuilder = new StringBuilder();
-        String helperText = "Type digits, press S to start, B to go back.";
+        String helperText = "Type digits, press S to start, B to go back. Difficulty can be changed in-world with T.";
         boolean needsRedraw = true;
 
         while (true) {
@@ -639,11 +775,19 @@ public class Game {
         StdDraw.pause(1400);
     }
 
-    private void saveSeed(long seed) {
-        saveWorld(new World(seed, WORLD_WIDTH, WORLD_HEIGHT), 0L);
+    private void loadMostRecentSave() {
+        List<SaveEntry> saves = getSaveEntries();
+        if (saves.isEmpty()) {
+            showMenuNotice("No saves yet. Start a run and use :Q to create one.");
+            return;
+        }
+
+        SaveData data = readSaveData(saves.get(0));
+        selectedDifficulty = data.difficulty;
+        showWorld(buildWorldFromSave(data));
     }
 
-    private void saveWorld(World world, long elapsedMillis) {
+    private void saveWorld(World world) {
         ensureSaveDirectory();
 
         String filename = "save-" + world.getSeed() + ".txt";
@@ -675,6 +819,7 @@ public class Game {
                     .append(monster.getFrozenUntilMoveCount());
         }
 
+        long elapsedMillis = elapsedMillisForMoveCount(world.getMoveCount());
         String contents = world.getSeed()
                 + ";" + world.getAvatarX()
                 + ";" + world.getAvatarY()
@@ -685,7 +830,9 @@ public class Game {
                 + ";" + world.getDifficulty().name()
                 + ";" + monsters
                 + ";" + exit
-                + ";" + coins;
+                + ";" + coins
+                + ";" + world.getRandomState()
+                + ";" + world.isLineOfSightEnabled();
         FileUtils.writeFile(new File(SAVE_DIR, filename).getPath(), contents);
     }
 
@@ -764,7 +911,7 @@ public class Game {
         }
 
         if (choice == JOptionPane.YES_OPTION) {
-            saveWorld(world, elapsedMillis);
+            saveWorld(world);
         }
 
         return true;
@@ -787,6 +934,8 @@ public class Game {
                         data.exitPosition,
                         data.monsters
                 );
+        world.setRandomState(data.randomState);
+        world.setLineOfSightEnabled(data.lineOfSightEnabled);
         return world;
     }
 
@@ -805,22 +954,29 @@ public class Game {
 
             return new SaveData(legacySeed, avatarX, avatarY, 0, 5, 0, 0L,
                     previewWorld.getDifficulty(), previewWorld.getMonsterSnapshots(),
-                    previewWorld.getExitPosition(), previewWorld.getCoinPositions());
+                    previewWorld.getExitPosition(), previewWorld.getCoinPositions(),
+                    previewWorld.getRandomState(), previewWorld.isLineOfSightEnabled());
         }
 
         String[] parts = content.split(";", -1);
         long seed = Long.parseLong(parts[0].trim());
-        World previewWorld = new World(seed, WORLD_WIDTH, WORLD_HEIGHT);
+        Difficulty difficulty = Difficulty.NORMAL;
+        if (parts.length >= 8 && !parts[7].isEmpty()) {
+            difficulty = Difficulty.fromString(parts[7].trim());
+        }
+
+        World previewWorld = new World(seed, WORLD_WIDTH, WORLD_HEIGHT, difficulty);
         int avatarX = previewWorld.getAvatarX();
         int avatarY = previewWorld.getAvatarY();
         int score = 0;
         int hp = 5;
         int moveCount = 0;
         long elapsedMillis = 0L;
-        Difficulty difficulty = previewWorld.getDifficulty();
         List<World.MonsterSnapshot> monsters = previewWorld.getMonsterSnapshots();
         World.Position exitPosition = previewWorld.getExitPosition();
         List<World.Position> remainingCoins = previewWorld.getCoinPositions();
+        long randomState = previewWorld.getRandomState();
+        boolean lineOfSightEnabled = previewWorld.isLineOfSightEnabled();
 
         if (parts.length >= 3) {
             avatarX = Integer.parseInt(parts[1].trim());
@@ -838,10 +994,9 @@ public class Game {
         if (parts.length >= 7 && !parts[6].isEmpty()) {
             elapsedMillis = Long.parseLong(parts[6].trim());
         }
-        if (parts.length >= 8 && !parts[7].isEmpty()) {
-            difficulty = Difficulty.fromString(parts[7].trim());
-        }
-        if (parts.length >= 11 && isLegacyMonsterFormat(parts[8], parts[9], parts[10])) {
+        boolean legacyMonsterSave = parts.length >= 11
+                && isLegacyMonsterFormat(parts[8], parts[9], parts[10]);
+        if (legacyMonsterSave) {
             monsters = parseLegacyMonster(parts[8], parts[9], parts[10]);
             if (parts.length >= 12 && !parts[11].isBlank()) {
                 exitPosition = parsePosition(parts[11]);
@@ -852,6 +1007,12 @@ public class Game {
                 remainingCoins = parseCoinPositions(parts[12]);
             } else if (parts.length >= 7) {
                 remainingCoins = parseCoinPositions(parts[6]);
+            }
+            if (parts.length >= 14 && !parts[13].isBlank()) {
+                randomState = Long.parseLong(parts[13].trim());
+            }
+            if (parts.length >= 15 && !parts[14].isBlank()) {
+                lineOfSightEnabled = Boolean.parseBoolean(parts[14].trim());
             }
         } else {
             if (parts.length >= 9) {
@@ -867,10 +1028,16 @@ public class Game {
             } else if (parts.length >= 7) {
                 remainingCoins = parseCoinPositions(parts[6]);
             }
+            if (parts.length >= 12 && !parts[11].isBlank()) {
+                randomState = Long.parseLong(parts[11].trim());
+            }
+            if (parts.length >= 13 && !parts[12].isBlank()) {
+                lineOfSightEnabled = Boolean.parseBoolean(parts[12].trim());
+            }
         }
 
         return new SaveData(seed, avatarX, avatarY, score, hp, moveCount, elapsedMillis,
-                difficulty, monsters, exitPosition, remainingCoins);
+                difficulty, monsters, exitPosition, remainingCoins, randomState, lineOfSightEnabled);
     }
 
     private boolean isLegacyMonsterFormat(String xPart, String yPart, String chasingPart) {
@@ -967,7 +1134,12 @@ public class Game {
         return String.format("%02d:%02d", minutes, seconds);
     }
 
-    private int currentCoinValue(long elapsedMillis) {
+    private long elapsedMillisForMoveCount(int moveCount) {
+        return Math.max(0L, moveCount) * MILLIS_PER_MOVE;
+    }
+
+    private int currentCoinValue(int moveCount) {
+        long elapsedMillis = elapsedMillisForMoveCount(moveCount);
         long decaySteps = Math.max(0L, elapsedMillis) / COIN_DECAY_INTERVAL_MILLIS;
         return Math.max(0, BASE_COIN_SCORE - (int) decaySteps);
     }
@@ -978,6 +1150,12 @@ public class Game {
 
     private int mouseTileY() {
         return (int) StdDraw.mouseY();
+    }
+
+    private enum EndScreenAction {
+        NEW_GAME,
+        MAIN_MENU,
+        QUIT
     }
 
     private static class SaveEntry {
@@ -1008,10 +1186,13 @@ public class Game {
         private final List<World.MonsterSnapshot> monsters;
         private final World.Position exitPosition;
         private final List<World.Position> remainingCoins;
+        private final long randomState;
+        private final boolean lineOfSightEnabled;
 
         SaveData(long seed, int avatarX, int avatarY, int score, int hp, int moveCount,
                  long elapsedMillis, Difficulty difficulty, List<World.MonsterSnapshot> monsters,
-                 World.Position exitPosition, List<World.Position> remainingCoins) {
+                 World.Position exitPosition, List<World.Position> remainingCoins,
+                 long randomState, boolean lineOfSightEnabled) {
             this.seed = seed;
             this.avatarX = avatarX;
             this.avatarY = avatarY;
@@ -1023,6 +1204,8 @@ public class Game {
             this.monsters = monsters;
             this.exitPosition = exitPosition;
             this.remainingCoins = remainingCoins;
+            this.randomState = randomState;
+            this.lineOfSightEnabled = lineOfSightEnabled;
         }
     }
 }

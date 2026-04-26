@@ -19,7 +19,8 @@ public class Game {
     private static final int WORLD_WIDTH = 50;
     private static final int WORLD_HEIGHT = 50;
     private static final int HUD_ROWS = 5;
-    private static final String SAVE_DIR = "proj5-saves";
+    private static final String PROJECT_SAVE_DIR = "src/core";
+    private static final String REPO_SAVE_DIR = "proj5/src/core";
     private static final int MAX_VISIBLE_SAVES = 8;
     private static final int BASE_COIN_SCORE = 10;
     private static final long COIN_DECAY_INTERVAL_MILLIS = 30_000L;
@@ -833,15 +834,17 @@ public class Game {
                 + ";" + coins
                 + ";" + world.getRandomState()
                 + ";" + world.isLineOfSightEnabled();
-        FileUtils.writeFile(new File(SAVE_DIR, filename).getPath(), contents);
+        File saveDir = resolveSaveDirectory();
+        FileUtils.writeFile(new File(saveDir, filename).getPath(), contents);
     }
 
     private List<SaveEntry> getSaveEntries() {
         ensureSaveDirectory();
         List<SaveEntry> saves = new ArrayList<>();
-        File saveDir = new File(SAVE_DIR);
+        File saveDir = resolveSaveDirectory();
 
-        File[] files = saveDir.listFiles((dir, name) -> name.endsWith(".txt"));
+        File[] files = saveDir.listFiles((dir, name) ->
+                name.startsWith("save-") && name.endsWith(".txt"));
         if (files == null) {
             return saves;
         }
@@ -870,10 +873,24 @@ public class Game {
     }
 
     private void ensureSaveDirectory() {
-        File saveDir = new File(SAVE_DIR);
+        File saveDir = resolveSaveDirectory();
         if (!saveDir.exists()) {
             saveDir.mkdirs();
         }
+    }
+
+    private File resolveSaveDirectory() {
+        File projectSaveDir = new File(PROJECT_SAVE_DIR);
+        if (projectSaveDir.exists() && projectSaveDir.isDirectory()) {
+            return projectSaveDir;
+        }
+
+        File repoSaveDir = new File(REPO_SAVE_DIR);
+        if (repoSaveDir.exists() && repoSaveDir.isDirectory()) {
+            return repoSaveDir;
+        }
+
+        return repoSaveDir;
     }
 
     private void deleteSave(SaveEntry save) {

@@ -514,14 +514,14 @@ public class Game {
         StdDraw.text(WORLD_WIDTH / 2.0, WORLD_HEIGHT - 5.0, "Blind Search Prototype");
 
         drawMenuCard();
-        drawMenuOption(WORLD_HEIGHT - 9.0, "[N] New Game", "Enter a seed and generate a fresh world.");
-        drawMenuOption(WORLD_HEIGHT - 17.0, "[L] Load Game", "Open a save and continue from its stored difficulty.");
+        drawMenuOption(WORLD_HEIGHT - 9.0, "[N] New World", "Enter a seed and generate a fresh world.");
+        drawMenuOption(WORLD_HEIGHT - 17.0, "[L] Load", "Open the most recent save immediately.");
         drawMenuOption(WORLD_HEIGHT - 25.0, "[Q] Quit", "Close the game window.");
 
         StdDraw.setPenColor(new Color(130, 146, 166));
         StdDraw.setFont(new Font("Arial", Font.PLAIN, 13));
         StdDraw.text(WORLD_WIDTH / 2.0, 5.0,
-                "New Game starts right after seed entry. Press T in-world to change difficulty.");
+                "New World starts right after seed entry. Press T in-world to change difficulty.");
         StdDraw.show();
     }
 

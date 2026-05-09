@@ -67,6 +67,8 @@ proj5/src/core/save-*.txt
 
 # Library
 *.jar
+!/library-sp26/
+!/library-sp26/*.jar
 
 # Please don't unless you know what you're doing
 *.iml

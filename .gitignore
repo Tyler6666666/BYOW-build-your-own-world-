@@ -63,6 +63,7 @@ proj4*/*.txt
 proj5-saves/
 proj5/proj5-saves/
 proj5/proj5-last-seed.txt
+proj5/src/core/save-*.txt
 
 # Library
 *.jar

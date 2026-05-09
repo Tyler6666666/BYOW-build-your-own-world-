@@ -54,22 +54,14 @@
 **/.idea/**/gradle.xml
 **/.idea/**/libraries
 
-# Project 2
-proj4*/data/
-proj4*/*.zip
-proj4*/*.txt
-
 # Local BYOW save data
-proj5-saves/
-proj5/proj5-saves/
-proj5/proj5-last-seed.txt
-proj5/src/core/save-*.txt
+BYOW/src/core/save-*.txt
 
 # Library
 *.jar
 !/library-sp26/
 !/library-sp26/*.jar
 
-# Please don't unless you know what you're doing
+# IDE project files
 *.iml
 **/.idea/**

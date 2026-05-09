@@ -3,18 +3,18 @@ setlocal
 
 cd /d "%~dp0"
 set "ROOT=%CD%"
-set "PROJECT_DIR=%ROOT%\proj5"
+set "PROJECT_DIR=%ROOT%\BYOW"
 set "OUT_DIR=%PROJECT_DIR%\out\game"
 set "SOURCES_FILE=%OUT_DIR%\sources.txt"
 
 set "LIBRARY_JAR="
 if exist "%ROOT%\..\library-sp26\algs4.jar" set "LIBRARY_JAR=%ROOT%\..\library-sp26\algs4.jar"
 if not defined LIBRARY_JAR if exist "%ROOT%\library-sp26\algs4.jar" set "LIBRARY_JAR=%ROOT%\library-sp26\algs4.jar"
-if not defined LIBRARY_JAR if defined CS61B_LIBRARY if exist "%CS61B_LIBRARY%\algs4.jar" set "LIBRARY_JAR=%CS61B_LIBRARY%\algs4.jar"
+if not defined LIBRARY_JAR if defined BYOW_LIBRARY if exist "%BYOW_LIBRARY%\algs4.jar" set "LIBRARY_JAR=%BYOW_LIBRARY%\algs4.jar"
 
 if not defined LIBRARY_JAR (
     echo Could not find library-sp26\algs4.jar.
-    echo Put library-sp26 next to this project folder, or set CS61B_LIBRARY to that folder.
+    echo Keep library-sp26 next to this launcher, or set BYOW_LIBRARY to that folder.
     pause
     exit /b 1
 )

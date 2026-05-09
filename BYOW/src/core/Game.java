@@ -22,7 +22,7 @@ public class Game {
     private static final int HUD_ROWS = 5;
     private static final String PROJECT_SAVE_DIR = "src/core";
     private static final String SOURCE_ROOT_SAVE_DIR = "core";
-    private static final String LEGACY_LOCAL_SAVE_DIR = "proj5/src/core";
+    private static final String LEGACY_LOCAL_SAVE_DIR = "BYOW/src/core";
     private static final int MAX_VISIBLE_SAVES = 8;
     private static final int BASE_COIN_SCORE = 10;
     private static final long COIN_DECAY_INTERVAL_MILLIS = 30_000L;
